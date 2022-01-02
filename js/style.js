@@ -1,35 +1,40 @@
 $(document).ready(function()
 {
-	var blacklist = ["okan", "korhan", "deneme"]; //blacklist array
-	var graylist = ["kelime", "gri", "grey"]; 	//graylist array
-	var undef = ["tanımsız", "undef", "tanım"];	 //undefined array
+	var blacklist = ["okan", "korhan", "deneme"]; //blacklist dizisi
+	var graylist = ["kelime", "gri", "grey"]; 	//graylist dizisi
+	var undef = ["tanımsız", "undef", "tanım"];	 //undefined dizisi
 
-	function yazi_bol(yazi) 	//text splitting and turning into array function
+	function yazi_bol(yazi) 	//yazıyı boşluklara göre bölme ve dizi oluşturma fonksiyonu
 	{
 		var yazi_array = yazi.split(" ");
-
-		/*for (let i = 0; i < yazi_array.length; i++) 
-		{
-			yazi_array[i] = yazi_array[i];
-		}*/
 
 		return yazi_array;
 	}
 
-	function yazi_duzelt(yazi)	// text editing function to write again in textarea
+	function comma(yazi)
+	{	
+		let don = "";
+		for(let i = 0; i<yazi.length; i++)
+		{	
+			don = yazi[i].replace(/,/g, "");
+		}
+		return don;
+	}
+
+	function yazi_duzelt(yazi)	//html ile çekilmiş yazıyı tekrar textarea bölgesine yazabilmek için düzenleme fonksiyonu
 	{
 		var donecek = "";
 
-		for(var i = 0; i<yazi.length; i++)
-		{
-			
-			donecek = donecek + yazi[i] + " ";
+		for(let i = 0; i<yazi.length; i++) //her bir dizi elemanın sonuna boşluk ekleniyor
+		{	
+			yazi[i] = yazi[i].replace("&nbsp;", "");
+			donecek = donecek + yazi[i] + " "; 
 		}
 
 		return donecek;
 	}
 
-	function placeCaretAtEnd(el) {	// when you use contenteditable spec of html elements and manipulate content with javascript, cursor is jumping to beginning of text. This function for fix it.
+	function placeCaretAtEnd(el) {	// contenteditable özelliği aktifleşince ve jquery ile manipüle edildiğinde cursor en başa zıplıyor, bunu enegellemek için yazılmış hazır bir fonksiyon
 	    el.focus();
 	    if (typeof window.getSelection != "undefined" && typeof document.createRange != "undefined") 
 	    {
@@ -49,59 +54,72 @@ $(document).ready(function()
 	    }
 	}
 
-	let donen, donen2; 
-	var altsimge = 1;
+	let donen, donen2; //yazı bölme fonksiyonlarından dönen değerler
+	var altsimge = 1; //gri liste için alt simge sayısı
 
-	$("#textarea").on("keyup" , function(button)
+	$("#textarea").on("keydown" , function(button)
 	{	
-		var yazi = $("#textarea").text();	// text content of textarea
-		var yazi2 = $("#textarea").html(); 	// html content of textarea
-		donen = yazi_bol(yazi.toLowerCase()); 	// splitted array of yazi variable
-		donen2 = yazi_bol(yazi2);	// splitted array of yazi2 variable
+		if(button.keyCode === 32 || button.keyCode === 13){ // space veya enter tuşuna basıldıysa
 
-		if(yazi === "") { altsimge = 1; }
+			var yazi = $("#textarea").text();	// textarea'nın yazı içeriği
+			var yazi2 = $("#textarea").html(); 	// textarea'nın html içeriği
+			donen = yazi_bol(yazi.toLowerCase()); 	// yazi değişkenin bölünmüş hali
+			donen2 = yazi_bol(yazi2);	// yazi2 değişkenin bölünmüş hali
 
-		var bas = yazi_duzelt(donen2);
+			var bas = yazi_duzelt(donen2) + "&nbsp;"; // textarea'nın içine basılacak olan içerik
 
-		for(var i = 0; i<blacklist.length; i++)
-		{
-			if(donen.slice(-1) == blacklist[i])
+			for(let i = 0; i<blacklist.length; i++) // blacklist kontrolü için döngü
 			{
-				donen[donen.length - 1] = "<span title='Bu kelimeyi kullanmanız uygunsuzdur.' class='blacklist'>"+blacklist[i]+"</span> ";	
-				bas = yazi_duzelt(donen2.slice(0, -1)) + donen[donen.length - 1] + "&nbsp;";
-				break;
-			} 
+				if(donen.slice(-1) == blacklist[i])
+				{
+					donen[donen.length - 1] = "<span title='Bu kelimeyi kullanmanız uygunsuzdur.' class='blacklist'>"+blacklist[i]+"</span>";	
+					bas = yazi_duzelt(donen2.slice(0, -1)) + donen[donen.length - 1] + " &nbsp;";
+					break;
+				} 
+			}
+
+			for(let i = 0; i<undef.length; i++)	// tanımsız kelime kontrolü için döngü
+			{
+				if(donen.slice(-1) == undef[i])
+				{
+					donen[donen.length - 1] = "<span title='Bu kelimeyi kullanmanız uygunsuzdur.' class='undef'>"+undef[i]+"</span>";
+					bas = yazi_duzelt(donen2.slice(0, -1)) + donen[donen.length - 1] + " &nbsp;";
+					break;
+				} 
+			}
+
+			for(let i = 0; i<graylist.length; i++) // graylist kontrolü için döngü
+			{
+				if(donen.slice(-1) == graylist[i])
+				{
+					donen[donen.length - 1] = graylist[i]+"<sub title='Bu kelimeyi kullanmanız uygunsuzdur.' class='graylist'>"+altsimge+"</sub>";
+					bas = yazi_duzelt(donen2.slice(0, -1)) + donen[donen.length - 1] + " &nbsp;";
+					altsimge++;
+					break;
+				} 
+			}
+
+			
+			$("#textarea").html(bas);
+			placeCaretAtEnd( $("#textarea").get(0) );
+
+			return false;
+
+		}
+		else if(button.keyCode == 8) //tüm yazıların silinip silinmediğinin kontrolü için if 
+		{
+			var yazi = $("#textarea").text();
+			if(yazi == "")  //eğer yazılar silinmişse
+			{ 
+				$("#textarea").html(""); //içeriyi html taglerinden temizle
+				placeCaretAtEnd( $("#textarea").get(0) );
+				altsimge = 1;  // eğer yazi değişkeni boşsa yani tüm yazılar silinmişse, altsimgeyi tekrar 1'e eşitle
+			}
 		}
 
-		for(var i = 0; i<undef.length; i++)
-		{
-			if(donen.slice(-1) == undef[i])
-			{
-				donen[donen.length - 1] = "<span title='Bu kelimeyi kullanmanız uygunsuzdur.' class='undef'>"+undef[i]+"</span> ";
-				bas = yazi_duzelt(donen2.slice(0, -1)) + donen[donen.length - 1] + "&nbsp;";
-				break;
-			} 
-		}
-
-		for(var i = 0; i<graylist.length; i++)
-		{
-			if(donen.slice(-1) == graylist[i])
-			{
-				donen[donen.length - 1] = graylist[i]+"<sub title='Bu kelimeyi kullanmanız uygunsuzdur.' class='graylist'>"+altsimge+"</sub> ";
-				bas = yazi_duzelt(donen2.slice(0, -1)) + donen[donen.length - 1] + "&nbsp;";
-				altsimge++;
-				break;
-			} 
-		}
-
-		
-		$("#textarea").html(bas);
-
-		$("p").html(bas);
-		placeCaretAtEnd( $("#textarea").get(0) );
-
-		return false;
 	});
+
+	
 	
 	
 });
